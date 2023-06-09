@@ -1,40 +1,61 @@
-class maze:
-    def __init__(self) -> None:
+import gym
+import random
+import networkx as nx
+
+
+
+class Maze(gym.Env):
+    def __init__(self, dim, num_of_agents, density = 0.2) -> None:
+        
+        Maze._check_legality(dim, num_of_agents, density)
+
         self.W = "W"
         self.E = "-"
+        self.Agent = "A"
+        self.Goal = "G"
+
         self.UP = 0
         self.DOWN = 1
         self.LEFT = 2
         self.RIGHT = 3
 
+        self.dim = dim
+        self.num_of_agents = num_of_agents
+        self.density = density
+
         self.maze = []
-        self.dim =  0
-        self.num_of_agents = 0
         self.agents = []
         self.goals = []
+        self.graph = None
 
-    def generate_agents(self, num_of_agents):
-        import random
-        agents = []
-        while len(agents) < num_of_agents:
-            x = random.randint(0, self.dim-1)
-            y = random.randint(0, self.dim-1)
-            if (x,y) not in agents:
-                agents.append((x,y))
-        return agents
+
+    def _check_legality(dim, num_agents, density):
+        if dim < 2 or dim > 20:
+            raise Exception("Dimension must be between 2 and 20")
+        num_walls = int(density * dim * dim)
+        if num_walls + num_agents*2 > dim * dim:
+            raise Exception("Number of walls + Agents + Goals is greater than the dimension of the maze")
+        
+    def _get_empty_places(self, location_as_tuple=False):
+        if location_as_tuple:
+            return [(i,j) for i in range(self.dim) for j in range(self.dim) if self.maze[i][j] == self.E]
+        return [i*self.dim + j for i in range(self.dim) for j in range(self.dim) if self.maze[i][j] == self.E]
     
-    def generate_goals(self, num_of_agents):
-        import random
-        goals = []
-        while len(goals) < num_of_agents:
-            x = random.randint(0, self.dim-1)
-            y = random.randint(0, self.dim-1)
-            if (x,y) not in goals and (x,y) not in self.agents:
-                goals.append((x,y))
-        return goals
+    def _convert_location_to_tuple(self, place):
+        return (place // self.dim, place % self.dim)
+
+    # Generates X entities (can be anything to that matter - agents, goals, etc.)
+    def _generate_entities(self, num_of_entities):
+
+        empty_places = self._get_empty_places(location_as_tuple=False)
+        if len(empty_places) < num_of_entities:
+            return None
+        
+        entities = random.sample(empty_places, num_of_entities)
+        entities = [self._convert_location_to_tuple(entity) for entity in entities]
+        return entities         
 
     def check_paths(self, maze, agents, goals):
-        import networkx as nx
         G = nx.Graph()
         for i in range(len(maze)):
             for j in range(len(maze)):
@@ -56,26 +77,53 @@ class maze:
                 return False
         return True
 
-    def generate_maze(self, percent_of_walls, tries=50):
-        import random
-        number_of_walls = int(percent_of_walls * self.dim * self.dim)
-        
-        # initialize the maze
-        maze = [[0 for _ in range(self.dim)] for _ in range(self.dim)]
 
-        # place the agents and goals in the maze
-        for agent in self.agents:
-            name = 'A' + str(self.agents.index(agent))
-            maze[agent[0]][agent[1]] = name
-        for goal in self.goals:
-            name = 'G' + str(self.goals.index(goal))
-            maze[goal[0]][goal[1]] = name
+    
+    def _get_agent_name(self, agent):
+        return self.Agent + str(self.agents.index(agent))
+    
+    def _get_goal_name(self, goal):
+        return self.Goal + str(self.goals.index(goal))
+    
+    def _reset_maze(self):
+        self.maze = [[self.E for _ in range(self.dim)] for _ in range(self.dim)]
+    
+    def _add_agents(self, agents):
+        for agent in agents:
+            self.maze[agent[0]][agent[1]] = self._get_agent_name(agent) 
+
+    def _add_goals(self, goals):
+        for goal in goals:
+            self.maze[goal[0]][goal[1]] = self._get_goal_name(goal)
+
+    def _create_graph(self,):
+        self.graph = nx.grid_graph(dim=(self.dim, self.dim))
+
+
+    def _generate_maze(self, tries=50):
+        if self.density < 0 or self.density > 0.5:
+                    raise Exception("Percent of walls must be between 0 and 0.5")
+        
+        # reset the maze
+        self._reset_maze()
+        self.agents = self._generate_entities(self.num_of_agents)
+        self._add_agents(self.agents)
+        self.goals = self._generate_entities(self.num_of_agents)
+        self._add_goals(self.goals)
+        self._create_graph()
+        
+        number_of_walls = int(self.density * self.dim * self.dim)
 
         # place the walls in the maze
+        no_more_empty_places = False
         for _ in range(number_of_walls):
+            if no_more_empty_places:
+                break
             for _ in range(tries):
-                x = random.randint(0, self.dim-1)
-                y = random.randint(0, self.dim-1)
+                walls = self._generate_entities(1)
+                if walls is None:
+                    no_more_empty_places = True
+                    break
                 if maze[x][y] == 0:
                     maze[x][y] = self.W
                     if self.check_paths(maze, self.agents, self.goals) == False:
@@ -94,20 +142,13 @@ class maze:
     def get_maze(self):
         return self.maze
     
-    def reset(self, dim, num_of_agents, percent_of_walls):
-        self.dim = dim
-        self.num_of_agents = num_of_agents
+    def reset(self, ):
+        
+        # self.agents = self.generate_agents(num_of_agents)
+        # self.goals = self.generate_goals(num_of_agents)
 
-        self.agents = self.generate_agents(num_of_agents)
-        self.goals = self.generate_goals(num_of_agents)
-
-        self.maze = self.generate_maze(percent_of_walls)
-
-        print("Maze generated: ")
-        for row in self.maze:
-            print(row)
-        print("Agents: ", self.agents)
-        print("Goals: ", self.goals)
+        # self.maze = self.generate_maze(percent_of_walls)
+        self.generate_maze()
 
     def step(self, action):
         # for each agent update the maze to move according to the action
@@ -133,7 +174,19 @@ class maze:
             else:
                 pass
 
+    def render(self):
+        # print("Maze generated: ")
+        for row in self.maze:
+            print(row)
+        # print("Agents: ", self.agents)
+        # print("Goals: ", self.goals)
+
 
 if __name__ == '__main__':
-    m = maze()
+    import time
+    start_time = time.time()
+    m = Maze()
     m.reset(10, 6, 0.6)
+    total_time = time.time() - start_time
+    print("Time taken to generate maze: ", total_time)
+    m.render()
