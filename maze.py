@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 class Maze(gym.Env):
-    def __init__(self, dim, num_of_agents, density = 0.2) -> None:
+    def __init__(self, dim, num_of_agents, density = 0.2, reward_config=None) -> None:
         
         Maze._check_legality(dim, num_of_agents, density)
 
@@ -30,7 +30,21 @@ class Maze(gym.Env):
         self.goals = []
         self.graph = None
 
-        self.observation_space = 
+        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.dim, self.dim), dtype=np.int32)
+        # action space is a box from 0 to 4 (up, down, left, right, stay) for each agent
+        self.action_space = gym.spaces.Box(low=0, high=4, shape=(self.num_of_agents,), dtype=np.int32)
+        self.reward_config = reward_config if reward_config is not None else {
+            "step": -1,
+            "stay": -1,
+            "hit_wall": -10,
+            "collide": -10,
+            "goal": 100,
+        }
+    STEP = "step"
+    STAY = "stay"
+    HIT_WALL = "hit_wall"
+    COLLIDE = "collide"
+    GOAL = "goal"
 
 
     def _check_legality(dim, num_agents, density):
@@ -68,6 +82,9 @@ class Maze(gym.Env):
     def _get_agent_name(self, agent):
         return self.Agent + str(self.agents.index(agent))
     
+    def _get_agent_name_by_index(self, index):
+        return self.Agent + str(index)
+    
     def _get_goal_name(self, goal):
         return self.Goal + str(self.goals.index(goal))
     
@@ -87,17 +104,20 @@ class Maze(gym.Env):
         for goal in self.goals:
             self.maze[goal] = self._get_goal_name(goal)
 
+    def _is_wall(self, cell):
+            return self.maze[cell] == self.W
+        
+    def _is_agent(self, cell):
+        return self.maze[cell].startswith(self.Agent)
+    
+    def _is_goal(self, cell):
+        return self.maze[cell].startswith(self.Goal)
+        
     """ Creates the initial graph of the maze, after removing edges that go into or out of a wall or agent"""
     def _create_initial_graph(self,):
 
-        def is_wall(cell):
-            return self.maze[cell] == self.W
-        
-        def is_agent(cell):
-            return self.maze[cell].startswith(self.Agent)
-        
         def is_wall_or_agent(cell):
-            return is_wall(cell) or is_agent(cell)
+            return self._is_wall(cell) or self._is_agent(cell)
 
         self.graph = nx.grid_graph(dim=(self.dim, self.dim))
 
@@ -167,55 +187,100 @@ class Maze(gym.Env):
                 wall = walls[0]
                 if self._add_wall(wall):
                     placed_walls += 1
+
+        # Remove all "Blocking_Wall" from the maze
+        self.maze[self.maze == self.Blocking_Wall] = self.E
        
     def get_maze(self):
         return self.maze
     
-    def reset(self, ):
+    def agent_obs(self, agent_name):
+        return int(agent_name[len(self.Agent):])
+    def goal_obs(self, goal_name):
+        return int(goal_name[len(self.Goal):])
+    
+    def _get_cell_obs(self, cell_content):
+        # 0 for empty cell, 1 for wall, 2 + index for agent or goal
+        if cell_content == self.E:
+            return 0
+        elif cell_content == self.W:
+            return 1
+        elif cell_content.startswith(self.Agent):
+            return 2 + self.agent_obs(cell_content)
+        elif cell_content.startswith(self.Goal):
+            return 2 + self.goal_obs(cell_content)
         
-        # self.agents = self.generate_agents(num_of_agents)
-        # self.goals = self.generate_goals(num_of_agents)
 
-        # self.maze = self.generate_maze(percent_of_walls)
+    def _get_observation(self):
+        observation = [self._get_cell_obs(cell) for cell in self.maze.flatten()]
+        return observation
+    
+    def _can_go_direction(self, agent, direction):
+        if direction == self.UP:
+            return agent[0] > 0 and self.maze[agent[0]-1][agent[1]] != self.W and not (self.maze[agent[0]-1][agent[1]].startswith(self.Agent))
+        elif direction == self.DOWN:
+            return agent[0] < self.dim-1 and self.maze[agent[0]+1][agent[1]] != self.W and not (self.maze[agent[0]+1][agent[1]].startswith(self.Agent))
+        elif direction == self.LEFT:
+            return agent[1] > 0 and self.maze[agent[0]][agent[1]-1] != self.W and not (self.maze[agent[0]][agent[1]-1].startswith(self.Agent))
+        elif direction == self.RIGHT:
+            return agent[1] < self.dim-1 and self.maze[agent[0]][agent[1]+1] != self.W and not (self.maze[agent[0]][agent[1]+1].startswith(self.Agent))
+        
+    def _get_new_position(self, agent, direction):
+        if direction == self.UP:
+            return (agent[0]-1, agent[1])
+        elif direction == self.DOWN:
+            return (agent[0]+1, agent[1])
+        elif direction == self.LEFT:
+            return (agent[0], agent[1]-1)
+        elif direction == self.RIGHT:
+            return (agent[0], agent[1]+1)
+        
+    def _is_valid_cell(self, cell):
+        return cell[0] >= 0 and cell[0] < self.dim and cell[1] >= 0 and cell[1] < self.dim
+        
+    def _is_done(self):
+        # all agent are at their goals positions
+        return all([self.agents[i] == self.goals[i] for i in range(self.num_of_agents)])
+
+    def reset(self, ):
         self._generate_maze()
+        return self._get_observation(), {}
 
     def step(self, action):
         # for each agent update the maze to move according to the action
+        rewards = [0 for _ in range(self.num_of_agents)]
         for i in range(self.num_of_agents):
             agent = self.agents[i]
-            goal = self.goals[i]
-            if action[i] == self.UP and agent[0] > 0 and self.maze[agent[0]-1][agent[1]] != self.W:
-                self.maze[agent[0]][agent[1]] = self.E
-                self.maze[agent[0]-1][agent[1]] = 'A' + str(i)
-                self.agents[i] = (agent[0]-1, agent[1])
-            elif action[i] == self.DOWN and agent[0] < self.dim-1 and self.maze[agent[0]+1][agent[1]] != self.W:
-                self.maze[agent[0]][agent[1]] = self.E
-                self.maze[agent[0]+1][agent[1]] = 'A' + str(i)
-                self.agents[i] = (agent[0]+1, agent[1])
-            elif action[i] == self.LEFT and agent[1] > 0 and self.maze[agent[0]][agent[1]-1] != self.W:
-                self.maze[agent[0]][agent[1]] = self.E
-                self.maze[agent[0]][agent[1]-1] = 'A' + str(i)
-                self.agents[i] = (agent[0], agent[1]-1)
-            elif action[i] == self.RIGHT and agent[1] < self.dim-1 and self.maze[agent[0]][agent[1]+1] != self.W:
-                self.maze[agent[0]][agent[1]] = self.E
-                self.maze[agent[0]][agent[1]+1] = 'A' + str(i)
-                self.agents[i] = (agent[0], agent[1]+1)
+            new_position = self._get_new_position(agent, action[i])
+            if self._can_go_direction(agent, action[i]):
+                self.maze[agent] = self.E
+                self.agents[i] = new_position
+                self.maze[self.agents[i]] = self._get_agent_name_by_index(i)
+                if self._is_goal(new_position):
+                    rewards[i] = self.reward_config[Maze.GOAL]
+                else:
+                    rewards[i] = self.reward_config[Maze.STEP]
+
+            elif self._is_valid_cell and self._is_agent(new_position):
+                rewards[i] = self.reward_config[Maze.HIT_WALL]
             else:
-                pass
+                rewards[i] = self.reward_config[Maze.COLLIDE]
+
+        new_observation = self._get_observation()
+        done = self._is_done()
+        return new_observation, rewards, done, {}
+
+            
 
     def render(self):
-        # print("Maze generated: ")
         for row in self.maze:
             print(row)
-        # print("Agents: ", self.agents)
-        # print("Goals: ", self.goals)
 
 
 if __name__ == '__main__':
-    import time
-    start_time = time.time()
-    m = Maze(10, 6, density=0.3)
-    m.reset()
-    total_time = time.time() - start_time
-    print("Time taken to generate maze: ", total_time)
+    m = Maze(10, 3, density=0.3)
+    obs, info = m.reset()
+    m.render()
+    obs, reward, done ,info = m.step([m.UP, m.UP, m.UP])
+    print(reward)
     m.render()
