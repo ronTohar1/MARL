@@ -155,11 +155,15 @@ class Maze(gym.Env):
             self.graph.add_edges_from(agent_edges)
             goal = self.goals[self.agents.index(agent)]
 
+            has_path = True
             if not nx.has_path(self.graph, agent, goal):
-                return False
+                has_path = False
             
             # remove agent edges from the graph
             self.graph.remove_edges_from(agent_edges)
+            if not has_path:
+                return False
+            
 
         return True
 
@@ -243,13 +247,17 @@ class Maze(gym.Env):
     
     def _can_go_direction(self, agent, direction):
         if direction == self.UP:
-            return agent[0] > 0 and self.maze[agent[0]-1][agent[1]] != self.W and not (self.maze[agent[0]-1][agent[1]].startswith(self.Agent))
+            new_cell = (agent[0]-1, agent[1])
+            return agent[0] > 0 and self.maze[agent[0]-1][agent[1]] != self.W and not (new_cell in self.agents and self._is_agent_active(self.agents.index(new_cell)))
         elif direction == self.DOWN:
-            return agent[0] < self.dim-1 and self.maze[agent[0]+1][agent[1]] != self.W and not (self.maze[agent[0]+1][agent[1]].startswith(self.Agent))
+            new_cell = (agent[0]+1, agent[1])
+            return agent[0] < self.dim-1 and self.maze[agent[0]+1][agent[1]] != self.W and not (new_cell in self.agents and self._is_agent_active(self.agents.index(new_cell)))
         elif direction == self.LEFT:
-            return agent[1] > 0 and self.maze[agent[0]][agent[1]-1] != self.W and not (self.maze[agent[0]][agent[1]-1].startswith(self.Agent))
-        elif direction == self.RIGHT:
-            return agent[1] < self.dim-1 and self.maze[agent[0]][agent[1]+1] != self.W and not (self.maze[agent[0]][agent[1]+1].startswith(self.Agent))
+            new_cell = (agent[0], agent[1]-1)
+            return agent[1] > 0 and self.maze[agent[0]][agent[1]-1] != self.W and not (new_cell in self.agents and self._is_agent_active(self.agents.index(new_cell)))
+        elif self.RIGHT:
+            new_cell = (agent[0], agent[1]+1)
+            return agent[1] < self.dim-1 and self.maze[agent[0]][agent[1]+1] != self.W and not (new_cell in self.agents and self._is_agent_active(self.agents.index(new_cell)))
         
     def _get_new_position(self, agent, direction):
         if direction == self.UP:
@@ -288,7 +296,8 @@ class Maze(gym.Env):
         # for each agent update the maze to move according to the action
         rewards = [0 for _ in range(self.num_of_agents)]
         for i in range(self.num_of_agents):
-            if not self._is_agent_active(i):    
+            if not self._is_agent_active(i):
+                rewards[i] = 0 if action[i] == self.STAY else self.reward_config[Maze.STEP]    
                 continue
             agent = self.agents[i]
             new_position = self._get_new_position(agent, action[i])

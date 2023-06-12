@@ -1,6 +1,6 @@
 from stable_baselines3 import A2C, PPO, DQN
 from stable_baselines3.common.monitor import Monitor
-from maze import Maze
+from maze_env import Maze
 import numpy as np
 from callbacks_log import TensorboardCallback
 
