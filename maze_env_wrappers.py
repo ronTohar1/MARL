@@ -40,7 +40,7 @@ class MazeImageWrapper(gymnasium.Env):
         return obs, info
     
     def render(self, mode='human'):
-        self.env.render(mode)
+        self.env.render()
 
     def close(self):
         self.env.close()

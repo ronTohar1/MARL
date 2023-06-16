@@ -5,25 +5,33 @@ import numpy as np
 from callbacks_log import TensorboardCallback
 from gymnasium.wrappers.flatten_observation import FlattenObservation
 import gymnasium
+from maze_env_wrappers import MazeImageWrapper
 
 
 
-env = Maze(3,1,max_steps=None, density=0)
+env = Maze(10,4,max_steps=100, density=0)
 env = Monitor(env)
-env = FlattenObservation(env)
+env = MazeImageWrapper(env)
+# env = FlattenObservation(env)
 
-model = DQN.load("atc_maze")
+model = A2C.load("models/CnnPolicy/A2C")
 
 obs, info = env.reset()
 done = False
 env.render()
+total_reward = 0
 while not done:
-    action, _states = model.predict(obs, deterministic=True)
-    print(action)
-    print(env.action_names(action))
-    obs, reward, terminated, truncated , info = env.step(action)
+    actions, _states = model.predict(obs, deterministic=True)
+    print(actions)
+    print(Maze.action_names(actions))
+    obs, reward, terminated, truncated , info = env.step(actions)
+    total_reward += reward
     done = terminated or truncated
     env.render()
-    print(obs)
+    if reward > 0:
+        x = input("press enter to continue")
+    # print(obs)
     print("reward:", reward)
     print()
+
+print("total reward:", total_reward)

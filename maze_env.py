@@ -48,11 +48,8 @@ class Maze(gym.Env):
         
         Maze._check_legality(dim, num_of_agents, density)
 
-        self.UP = 0
-        self.DOWN = 1
-        self.LEFT = 2
-        self.RIGHT = 3
-        self.STAY = 4
+        self.seed = 500
+        random.seed(self.seed)
 
         self.dim = dim
         self.num_of_agents = num_of_agents
@@ -73,13 +70,13 @@ class Maze(gym.Env):
             "walls": gym.spaces.MultiBinary((self.dim, self.dim)),
         })
         # self.action_space = gym.spaces.Discrete(5)
-        self.action_space = gym.spaces.Box(low=0, high=4.99999, shape=(self.num_of_agents,), dtype=np.float32)
-        # self.action_space = gym.spaces.MultiDiscrete([5 for _ in range(self.num_of_agents)])
+        # self.action_space = gym.spaces.Box(low=0, high=5, shape=(self.num_of_agents,), dtype=np.int32)
+        self.action_space = gym.spaces.MultiDiscrete([5 for _ in range(self.num_of_agents)])
         self.reward_config = reward_config if reward_config is not None else {
             MazeConfig.STEP_REWARD: 0,
             MazeConfig.WALL_REWARD: -0.1,
             MazeConfig.COLLISION_REWARD: -0.1,
-            MazeConfig.GOAL_REWARD: 100,
+            MazeConfig.GOAL_REWARD: 10,
             MazeConfig.INACTIVE_AGENT_REWARD: 0
         }
 
@@ -205,7 +202,7 @@ class Maze(gym.Env):
         return observation
     
     def _can_go_direction(self, agent_idx, direction):
-        if direction == self.STAY:
+        if direction == MazeConfig.STAY:
             return True
         new_cell = self._get_new_cell(self.agents_poitions[agent_idx], direction)
         if not self._is_valid_cell(new_cell):
@@ -216,15 +213,15 @@ class Maze(gym.Env):
         
         
     def _get_new_cell(self, cell: tuple, direction):
-        if direction == self.UP:
+        if direction == MazeConfig.UP:
             return (cell[0]-1, cell[1])
-        elif direction == self.DOWN:
+        elif direction == MazeConfig.DOWN:
             return (cell[0]+1, cell[1])
-        elif direction == self.LEFT:
+        elif direction == MazeConfig.LEFT:
             return (cell[0], cell[1]-1)
-        elif direction == self.RIGHT:
+        elif direction == MazeConfig.RIGHT:
             return (cell[0], cell[1]+1)
-        elif direction == self.STAY:
+        elif direction == MazeConfig.STAY:
             return cell
         else:
             raise ValueError("Invalid direction: {}".format(direction))
@@ -267,7 +264,7 @@ class Maze(gym.Env):
         self._reset_maze(seed)
         return self._obs(), {}
     
-    def _map_action_to_direction(self, action):
+    def _map_action_to_direction(action):
         action = int(action)
         if action == 5:
             action = 4
@@ -279,7 +276,7 @@ class Maze(gym.Env):
         rewards = [0 for _ in range(self.num_of_agents)]
         num_active_agents = sum(self.active_agents)
         for agent_idx in range(self.num_of_agents):
-            rewards[agent_idx] = self._move_agent(agent_idx, self._map_action_to_direction(action[agent_idx]))
+            rewards[agent_idx] = self._move_agent(agent_idx, Maze._map_action_to_direction(action[agent_idx]))
             
         self.curr_steps += 1
 
@@ -337,8 +334,8 @@ class Maze(gym.Env):
         print()
 
 
-    def action_names(self, actions):
+    def action_names(actions):
         # if type(actions) != list:
             # actions = [actions]
-        actions = [self._map_action_to_direction(action) for action in actions]
+        actions = [Maze._map_action_to_direction(action) for action in actions]
         return [MazeConfig.get_direction(action) for action in actions]
