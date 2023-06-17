@@ -37,15 +37,7 @@ class MazeCNN(BaseFeaturesExtractor):
         # We assume CxHxW images (channels first)
         # Re-ordering will be done by pre-preprocessing or wrapper
         assert is_image_space(observation_space, check_channels=False, normalized_image=normalized_image), (
-            "You should use NatureCNN "
-            f"only with images not with {observation_space}\n"
-            "(you are probably using `CnnPolicy` instead of `MlpPolicy` or `MultiInputPolicy`)\n"
-            "If you are using a custom environment,\n"
-            "please check it using our env checker:\n"
-            "https://stable-baselines3.readthedocs.io/en/master/common/env_checker.html.\n"
-            "If you are using `VecNormalize` or already normalized channel-first images "
-            "you should pass `normalize_images=False`: \n"
-            "https://stable-baselines3.readthedocs.io/en/master/guide/custom_env.html"
+            "not correct image space for MazeCNN"
         )
         n_input_channels = observation_space.shape[0]
 
@@ -54,7 +46,7 @@ class MazeCNN(BaseFeaturesExtractor):
         self.cnn = nn.Sequential(
             nn.Conv2d(n_input_channels, 32, kernel_size=3, stride=1, padding='same',),
             activation_fn(),
-            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding='same'),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1),
             activation_fn(),
             nn.Conv2d(64, 128, kernel_size=3, stride=1, padding='same'),
             activation_fn(),

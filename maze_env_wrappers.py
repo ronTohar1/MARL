@@ -6,8 +6,8 @@ class MazeImageWrapper(gymnasium.Env):
 
     def __init__(self, env: Maze):
         self.env = env
-        self.num_channels = env.num_of_agents + 1
-        self.observation_space = gymnasium.spaces.Box(low=0, high=255, shape=(self.num_channels, env.dim, env.dim), dtype=np.uint8)
+        self.num_channels = env.num_of_agents + 1 + 1 # agents + walls + current agent
+        self.observation_space = gymnasium.spaces.Box(low=0, high=1, shape=(self.num_channels, env.dim, env.dim), dtype=np.uint8)
         self.action_space = env.action_space
         # self.action_names = env.action_names
 
@@ -15,19 +15,25 @@ class MazeImageWrapper(gymnasium.Env):
         agents_positions = obs["agents"]
         goals_positions = obs["goals"]
         walls_channel = obs["walls"]
+        current_agent = 0
+        if "current_agent" in obs:
+            current_agent = obs["current_agent"]
 
+        current_agent_channel = np.zeros((self.env.dim, self.env.dim), dtype=np.uint8)
+        current_agent_cell = (current_agent // 2, current_agent % 2)
+        current_agent_channel[current_agent_cell] = 1
+        
         num_agents = len(agents_positions)
         channels = np.zeros((self.num_channels, self.env.dim, self.env.dim), dtype=np.uint8)
         for agent_idx in range(num_agents):
             agent_position = agents_positions[agent_idx]
             goal_position = goals_positions[agent_idx]
             channels[agent_idx, agent_position[0], agent_position[1]] = 1
-            channels[agent_idx, goal_position[0], goal_position[1]] = 255
+            channels[agent_idx, goal_position[0], goal_position[1]] = 0.5
 
-        channels[-1] = walls_channel
+        channels[-2] = walls_channel
+        channels[-1] = current_agent_channel
         return channels
-
-
 
     def step(self, action):
         obs, reward, terminated, truncated , info = self.env.step(action)

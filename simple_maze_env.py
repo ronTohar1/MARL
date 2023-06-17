@@ -48,11 +48,8 @@ class Maze(gym.Env):
         
         Maze._check_legality(dim, num_of_agents, density)
 
-        self.UP = 0
-        self.DOWN = 1
-        self.LEFT = 2
-        self.RIGHT = 3
-        self.STAY = 4
+        self.seed = 500
+        random.seed(self.seed)
 
         self.dim = dim
         self.num_of_agents = num_of_agents
@@ -66,14 +63,16 @@ class Maze(gym.Env):
         self.walls_positions = None
         self.active_agents = None
         self.terminated = None
+        self.current_agent_idx = None
 
         self.observation_space = gym.spaces.Dict({
             "agents": gym.spaces.Box(low=0, high=self.dim, shape=(self.num_of_agents, 2), dtype=np.int32),
             "goals": gym.spaces.Box(low=0, high=self.dim, shape=(self.num_of_agents, 2), dtype=np.int32),
             "walls": gym.spaces.MultiBinary((self.dim, self.dim)),
+            "current_agent": gym.spaces.Discrete(self.num_of_agents)
         })
-        # self.action_space = gym.spaces.Discrete(5)
-        self.action_space = gym.spaces.Box(low=0, high=4.99999, shape=(self.num_of_agents,), dtype=np.float32)
+        self.action_space = gym.spaces.Discrete(5)
+        # self.action_space = gym.spaces.Box(low=0, high=5, shape=(self.num_of_agents,), dtype=np.int32)
         # self.action_space = gym.spaces.MultiDiscrete([5 for _ in range(self.num_of_agents)])
         self.reward_config = reward_config if reward_config is not None else {
             MazeConfig.STEP_REWARD: 0,
@@ -85,10 +84,6 @@ class Maze(gym.Env):
 
         self.max_steps = max_steps
         self.curr_steps = 0
-
-
-    
-
 
     def _check_legality(dim, num_agents, density):
         if dim < 2 or dim > 20:
@@ -130,7 +125,8 @@ class Maze(gym.Env):
         self.walls_positions = self._put_walls()
         self.walls_obs = self._get_walls_obs()
         self.active_agents = [True] * self.num_of_agents
-        self.terminated = [False] * self.num_of_agents
+        self.terminated = [False] * self.num_of_agents 
+        self.current_agent_idx = 0
 
     def _put_walls(self):
         num_of_walls = int(self.dim * self.dim * self.density)
@@ -201,11 +197,12 @@ class Maze(gym.Env):
             "agents": np.array(self.agents_poitions),
             "goals": np.array(self.goals_positions),
             "walls": self.walls_obs,
+            "current_agent": self.current_agent_idx,
         }
         return observation
     
     def _can_go_direction(self, agent_idx, direction):
-        if direction == self.STAY:
+        if direction == MazeConfig.STAY:
             return True
         new_cell = self._get_new_cell(self.agents_poitions[agent_idx], direction)
         if not self._is_valid_cell(new_cell):
@@ -216,15 +213,15 @@ class Maze(gym.Env):
         
         
     def _get_new_cell(self, cell: tuple, direction):
-        if direction == self.UP:
+        if direction == MazeConfig.UP:
             return (cell[0]-1, cell[1])
-        elif direction == self.DOWN:
+        elif direction == MazeConfig.DOWN:
             return (cell[0]+1, cell[1])
-        elif direction == self.LEFT:
+        elif direction == MazeConfig.LEFT:
             return (cell[0], cell[1]-1)
-        elif direction == self.RIGHT:
+        elif direction == MazeConfig.RIGHT:
             return (cell[0], cell[1]+1)
-        elif direction == self.STAY:
+        elif direction == MazeConfig.STAY:
             return cell
         else:
             raise ValueError("Invalid direction: {}".format(direction))
@@ -267,7 +264,7 @@ class Maze(gym.Env):
         self._reset_maze(seed)
         return self._obs(), {}
     
-    def _map_action_to_direction(self, action):
+    def _map_action_to_direction(action):
         action = int(action)
         if action == 5:
             action = 4
@@ -276,20 +273,22 @@ class Maze(gym.Env):
     def step(self, action):
         # action = [action] if type(action) != list else action
         # for each agent update the maze to move according to the action
-        rewards = [0 for _ in range(self.num_of_agents)]
+        # rewards = [0 for _ in range(self.num_of_agents)]
         num_active_agents = sum(self.active_agents)
-        for agent_idx in range(self.num_of_agents):
-            rewards[agent_idx] = self._move_agent(agent_idx, self._map_action_to_direction(action[agent_idx]))
+
+        reward = self._move_agent(self.current_agent_idx, Maze._map_action_to_direction(action))
             
         self.curr_steps += 1
+
+        self.current_agent_idx = (self.current_agent_idx + 1) % self.num_of_agents
+        reward = reward/self.num_of_agents
 
         new_observation = self._obs()
         terminated = all(self.terminated)
         truncated = self._is_too_many_steps()
-        reward = self._build_reward(rewards, num_active_agents)
-        # if terminated:
-        #     print("done! total number of steps: {}".format(self.curr_steps))
-        # print(rewards)
+
+
+        # reward = self._build_reward(rewards, num_active_agents)
         
         return new_observation, reward, terminated, truncated, {}
     
@@ -297,9 +296,10 @@ class Maze(gym.Env):
 
     def _build_reward(self, rewards, num_active_agents):
         # Create single reward from the rewards of each agent
-        reward = sum(rewards) / self.num_of_agents
-        # if reward > self.reward_config[MazeConfig.GOAL_REWARD]:
-            # raise ValueError("Reward is too high: {}, {}-{}".format(reward, rewards, num_active_agents))
+        # print("rewards: {}, num_active_agents: {}".format(rewards, num_active_agents))
+        reward = sum(rewards) / num_active_agents
+        if reward > self.reward_config[MazeConfig.GOAL_REWARD]:
+            raise ValueError("Reward is too high: {}, {}-{}".format(reward, rewards, num_active_agents))
         return reward
 
     def render(self):
@@ -336,8 +336,8 @@ class Maze(gym.Env):
         print()
 
 
-    def action_names(self, actions):
+    def action_names(actions):
         # if type(actions) != list:
             # actions = [actions]
-        actions = [self._map_action_to_direction(action) for action in actions]
+        actions = [Maze._map_action_to_direction(action) for action in actions]
         return [MazeConfig.get_direction(action) for action in actions]

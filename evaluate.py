@@ -9,12 +9,12 @@ from maze_env_wrappers import MazeImageWrapper
 
 
 
-env = Maze(10,4,max_steps=100, density=0)
+env = Maze(10,4,max_steps=100, density=0.1)
 env = Monitor(env)
 env = MazeImageWrapper(env)
 # env = FlattenObservation(env)
 
-model = A2C.load("models/CnnPolicy/A2C")
+model = A2C.load("models/CnnPolicy/A2C,zip")
 
 obs, info = env.reset()
 done = False
@@ -30,7 +30,7 @@ while not done:
     env.render()
     if reward > 0:
         x = input("press enter to continue")
-    # print(obs)
+    print(obs)
     print("reward:", reward)
     print()
 

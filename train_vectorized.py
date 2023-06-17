@@ -1,6 +1,7 @@
 from stable_baselines3 import A2C, PPO, DDPG, TD3
 from stable_baselines3.common.monitor import Monitor
-from maze_env import Maze
+# from maze_env import Maze
+from simple_maze_env import Maze
 import numpy as np
 from callbacks_log import TensorboardCallback
 from gymnasium.wrappers.flatten_observation import FlattenObservation
@@ -23,9 +24,9 @@ def main():
     parser.add_argument("--num_steps","-ns", type=int, default=100_000)
     parser.add_argument('--policy','-p',type=str, default='CnnPolicy', choices=['MlpPolicy', 'CnnPolicy'], help='Policy to use for the agent')
     parser.add_argument('--features_dim','-fd',type=int, default=256, help='Number of features for the last layer of the CNN')
-    parser.add_argument('--max_steps','-maxs',type=int, default=100, help='Max number of steps in the environment')
+    parser.add_argument('--max_steps','-maxs',type=int, default=300, help='Max number of steps in the environment')
     parser.add_argument('--discount_factor','-df',type=float, default=0.99, help='Discount factor for the environment')
-
+    parser.add_argument('--verbose','-v',type=int, default=0, help='Verbosity level for the environment')
     args = parser.parse_args()
 
     model = MazeCNN
@@ -37,7 +38,7 @@ def main():
 
     if policy == 'CnnPolicy':
             policy_kwargs["features_extractor_class"] = model
-            policy_kwargs["features_extractor_kwargs"] = {"normalized_image":False,
+            policy_kwargs["features_extractor_kwargs"] = {"normalized_image":True,
                                                         "features_dim": features_dim,
                                                         "activation_fn": th.nn.ReLU} # All normalized (0 or 1 anyways)
 
@@ -49,6 +50,7 @@ def main():
     num_steps = args.num_steps
     max_steps = args.max_steps
     discount_factor = args.discount_factor
+    verbose = args.verbose
     
     env = Maze(maze_size, num_agents ,max_steps=max_steps, density=density)
     env = Monitor(env)
@@ -58,8 +60,8 @@ def main():
         env = FlattenObservation(env)
 
 
-    name = agent_class.__name__ + f"_policy {policy}"+ str(f"fd{features_dim}" if policy=="CnnPolicy" else "") + "_lr" + str(lr) + "_net" + str(net_arch) + f"_maze{maze_size}x{maze_size}_agents{num_agents}_density({density})_gamma{discount_factor}"
-    agent = agent_class(policy,env , verbose=0, tensorboard_log=f"./tensorboard_vec_{maze_size}/", learning_rate=lr, policy_kwargs=policy_kwargs, gamma=discount_factor)
+    name = agent_class.__name__ + f"_policy-{policy}"+ str(f"_fd{features_dim}" if policy=="CnnPolicy" else "") + "_lr" + str(lr) + "_net" + str(net_arch) + f"_maze{maze_size}x{maze_size}_agents{num_agents}_density({density})_gamma{discount_factor}"
+    agent = agent_class(policy,env , verbose=verbose, tensorboard_log=f"./tensorboard_vec_{maze_size}/", learning_rate=lr, policy_kwargs=policy_kwargs, gamma=discount_factor)
     # agent.learn(total_timesteps=num_steps, log_interval=100, tb_log_name=name )
     agent.learn(total_timesteps=num_steps, log_interval=100, tb_log_name=name)
     # agent.save(f"./models/{policy}/{agent_class.__name__}")
