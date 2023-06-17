@@ -1,4 +1,4 @@
-from stable_baselines3 import A2C, PPO, DDPG, TD3
+from stable_baselines3 import A2C, PPO, DDPG, TD3, DQN
 from stable_baselines3.common.monitor import Monitor
 # from maze_env import Maze
 from simple_maze_env import Maze
@@ -46,7 +46,7 @@ def main():
     num_agents = args.num_agents
     density = args.density
     lr = args.lr
-    agent_class = A2C if args.agent_class == 'a2c' else PPO if args.agent_class == 'ppo' else TD3
+    agent_class = A2C if args.agent_class == 'a2c' else PPO if args.agent_class == 'ppo' else DQN
     num_steps = args.num_steps
     max_steps = args.max_steps
     discount_factor = args.discount_factor
@@ -64,7 +64,7 @@ def main():
     agent = agent_class(policy,env , verbose=verbose, tensorboard_log=f"./tensorboard_vec_{maze_size}/", learning_rate=lr, policy_kwargs=policy_kwargs, gamma=discount_factor)
     # agent.learn(total_timesteps=num_steps, log_interval=100, tb_log_name=name )
     agent.learn(total_timesteps=num_steps, log_interval=100, tb_log_name=name)
-    # agent.save(f"./models/{policy}/{agent_class.__name__}")
+    agent.save(f"./models/{policy}/{agent_class.__name__}")
     
 
 

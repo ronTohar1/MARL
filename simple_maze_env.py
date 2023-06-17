@@ -286,7 +286,7 @@ class Maze(gym.Env):
         new_observation = self._obs()
         terminated = all(self.terminated)
         truncated = self._is_too_many_steps()
-
+        # terminated = truncated or terminated
 
         # reward = self._build_reward(rewards, num_active_agents)
         
