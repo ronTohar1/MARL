@@ -14,7 +14,7 @@ env = Monitor(env)
 env = MazeImageWrapper(env)
 # env = FlattenObservation(env)
 
-model = A2C.load("models/CnnPolicy/A2C,zip")
+model = A2C.load("models/CnnPolicy/A2C.zip")
 
 obs, info = env.reset()
 done = False

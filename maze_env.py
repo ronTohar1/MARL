@@ -117,8 +117,8 @@ class Maze(gym.Env):
     
 
     def _reset_maze(self, seed=None):
-        if seed:
-            random.seed(seed)
+        # if seed:
+            # random.seed(seed)
         self.maze = np.full((self.dim, self.dim), MazeConfig.FREE)
         self.curr_steps = 0
         self.graph = self._init_graph()
@@ -274,7 +274,8 @@ class Maze(gym.Env):
         # action = [action] if type(action) != list else action
         # for each agent update the maze to move according to the action
         rewards = [0 for _ in range(self.num_of_agents)]
-        num_active_agents = sum(self.active_agents)
+        # num_active_agents = sum(self.active_agents)
+        num_active_agents = self.num_of_agents
         for agent_idx in range(self.num_of_agents):
             rewards[agent_idx] = self._move_agent(agent_idx, Maze._map_action_to_direction(action[agent_idx]))
             
@@ -288,6 +289,10 @@ class Maze(gym.Env):
         #     print("done! total number of steps: {}".format(self.curr_steps))
         # print(rewards)
         
+        # terminated = truncated
+
+        # print(reward)
+
         return new_observation, reward, terminated, truncated, {}
     
 

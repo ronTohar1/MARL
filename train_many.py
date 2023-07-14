@@ -20,13 +20,13 @@ def main():
 
 
 
-    maze_size = [10]
+    maze_size = [16]
     num_agents = [4]
     density = [0]
-    lr = [0.0001,0.001]
+    lr = [0.0001,0.00001]
     # net_arch = ['[64,64]', '[128,128]', '[128,256]']
     net_arch = ['[64,64]', '[128,128]']
-    agent_class = "a2c"
+    agent_classes = ["ppo", "rppo"]
     num_steps = [100_000]
     features_dim = [256]
     # policies = ['MlpPolicy', 'CnnPolicy']
@@ -36,8 +36,8 @@ def main():
     discount_factors = [0.99]
 
     counter = 0
-    for ms, na, d, lr, net, ns, fd, policy, df in product(maze_size, num_agents, density, lr, net_arch, num_steps, features_dim, policies, discount_factors):
-        ac = agent_class
+    for ms, na, d, lr, net, ns, fd, policy, df, ac in product(maze_size, num_agents, density, lr, net_arch, num_steps, features_dim, policies, discount_factors, agent_classes):
+        # ac = agent_class
 
         run_string = f"-ms {ms} -na {na} -d {d} -lr {lr} -net {net} -ac {ac} -ns {ns} -fd {fd} -p {policy} -df {df}"
         r = subprocess.run(['sbatch','train_marl.sh', run_string])

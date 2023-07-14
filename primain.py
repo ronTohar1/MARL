@@ -3,14 +3,17 @@ from primal_master.mapf_gym import MAPFEnv
 
 def main():
     env = MAPFEnv(3)
-    x = env._reset(0)
+    x = env.reset()
     print(x)
     # env.render()
     done = False
     while not done:
+        # print(env.action_space)
         action = env.action_space.sample()
-        obs, reward, done, info = env._step(action)
-        print(obs, reward, done, info)
+        # action = tuple([action[0]+1, action[1]])
+        print("Action", action)
+        obs, reward, terminated, truncated, info = env.step(action)
+        print(obs, reward, terminated, truncated, info)
         # env.render()
     env.close()
 
