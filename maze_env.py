@@ -83,7 +83,8 @@ class Maze(gym.Env):
         self.max_steps = max_steps
         self.curr_steps = 0
 
-
+    def reset_by_map(self, file):
+        
     
 
 
