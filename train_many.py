@@ -24,7 +24,6 @@ def main():
     num_agents = [4]
     density = [0]
     lr = [0.0001,0.00001]
-    # net_arch = ['[64,64]', '[128,128]', '[128,256]']
     net_arch = ['[64,64]', '[128,128]']
     agent_classes = ["ppo", "rppo"]
     num_steps = [100_000]
