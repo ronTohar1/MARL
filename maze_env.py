@@ -83,11 +83,6 @@ class Maze(gym.Env):
         self.max_steps = max_steps
         self.curr_steps = 0
 
-    def reset_by_map(self, file):
-        
-    
-
-
     def _check_legality(dim, num_agents, density):
         if dim < 2 or dim > 20:
             raise Exception("Dimension must be between 2 and 20")
