@@ -10,6 +10,7 @@ import random
 from maze_env_wrappers import MazeImageWrapper
 from maze_cnn import MazeCNN
 from sb3_contrib import RecurrentPPO
+from maze_env import Maze
 from stable_baselines3.common.env_checker import check_env
 
 def main():
