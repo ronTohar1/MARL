@@ -1,9 +1,7 @@
 from stable_baselines3 import A2C, PPO, DDPG, TD3, DQN
 from stable_baselines3.common.monitor import Monitor
 # from maze_env import Maze
-from simple_maze_env import Maze
 import numpy as np
-from callbacks_log import TensorboardCallback
 from gymnasium.wrappers.flatten_observation import FlattenObservation
 import gymnasium
 import torch as th
@@ -21,7 +19,7 @@ def main():
     parser.add_argument("--density", "-d", type=float, default=0.5, help="density of obstacles")
     parser.add_argument("--lr", "-lr", type=float, default=0.0001)
     parser.add_argument("--net_arch", "-net", type=str, default='[64, 64]', help="list of hidden layer sizes")
-    parser.add_argument("--agent_class", "-ac", choices=['a2c','ppo','dqn',"rppo"], default='rppo')
+    parser.add_argument("--agent_class", "-ac", choices=['a2c','ppo','dqn',"rppo"], default='ppo')
     parser.add_argument("--num_steps","-ns", type=int, default=100_000)
     parser.add_argument('--policy','-p',type=str, default='CnnPolicy', choices=['MlpPolicy', 'CnnPolicy'], help='Policy to use for the agent')
     parser.add_argument('--features_dim','-fd',type=int, default=256, help='Number of features for the last layer of the CNN')
